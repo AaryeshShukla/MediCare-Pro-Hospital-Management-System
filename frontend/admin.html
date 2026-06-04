@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MediCare Pro - Administrator Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            min-height: 100vh;
+        }
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        .stats-card {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            color: white;
+            border-radius: 12px;
+            transition: transform 0.3s ease;
+        }
+        .stats-card:hover {
+            transform: translateY(-5px);
+        }
+        .btn-admin {
+            background: linear-gradient(45deg, #FF6B6B, #4ECDC4);
+            border: none;
+            color: white;
+        }
+        .btn-admin:hover {
+            background: linear-gradient(45deg, #FF5252, #45B7AA);
+            color: white;
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app" class="container mt-5">
+        <div class="dashboard-header">
+            <h1 class="text-center mb-0">🏥 MediCare Pro - Administrator Control Center</h1>
+            <p class="text-center text-muted mb-0">Manage doctors, patients, and system statistics</p>
+        </div>
+        <button @click="logout" class="btn btn-danger mb-3">🔓 Logout</button>
+        
+        <div v-if="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" @click="error = ''" aria-label="Close"></button>
+        </div>
+        
+        <h2 class="text-white mb-4">📊 System Analytics Dashboard</h2>
+        <div class="row">
+            <div class="col-md-4">
+                <div class="card stats-card mb-3">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">👨‍⚕️ Active Doctors</h5>
+                        <p class="card-text h2">{{ stats.doctors }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stats-card mb-3">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">👥 Registered Patients</h5>
+                        <p class="card-text h2">{{ stats.patients }}</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card stats-card mb-3">
+                    <div class="card-body text-center">
+                        <h5 class="card-title">📅 Total Appointments</h5>
+                        <p class="card-text h2">{{ stats.appointments }}</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2 class="text-white mt-5 mb-3">➕ Physician Management</h2>
+        <div v-if="docSuccess" class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ docSuccess }}
+            <button type="button" class="btn-close" @click="docSuccess = ''" aria-label="Close"></button>
+        </div>
+        <form @submit.prevent="addDoctor" class="mb-4 bg-white p-4 rounded">
+            <div class="row">
+                <div class="col-md-6">
+                    <input v-model="newDoctor.name" placeholder="Physician's Full Name" class="form-control mb-2" required>
+                    <input v-model="newDoctor.specialization" placeholder="Medical Specialty" class="form-control mb-2" required>
+                </div>
+                <div class="col-md-6">
+                    <input v-model="newDoctor.username" placeholder="System Username" class="form-control mb-2" required>
+                    <input v-model="newDoctor.password" type="password" placeholder="Secure Password" class="form-control mb-2" required>
+                    <input v-model="newDoctor.email" placeholder="Professional Email" class="form-control mb-2" required>
+                </div>
+            </div>
+            <button type="submit" class="btn btn-admin" :disabled="loading">{{ loading ? 'Adding Physician...' : '➕ Add New Physician' }}</button>
+        </form>
+        
+        <h2 class="text-white mb-3">👨‍⚕️ Physician Directory</h2>
+        <table class="table table-striped bg-white rounded">
+            <thead class="table-dark">
+                <tr>
+                    <th>👤 Physician Name</th>
+                    <th>🔬 Specialty</th>
+                    <th>⚙️ Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="doc in doctors" :key="doc.id">
+                    <td>{{ doc.name }}</td>
+                    <td>{{ doc.specialization }}</td>
+                    <td>
+                        <button @click="deletePatient(pat.id)" class="btn btn-danger btn-sm">🗑️ Remove</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2 class="text-white mb-3">👥 Patient Registry</h2>
+        <table class="table table-striped bg-white rounded">
+            <thead class="table-dark">
+                <tr>
+                    <th>👤 Patient Name</th>
+                    <th>⚙️ Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="pat in patients" :key="pat.id">
+                    <td>{{ pat.name }}</td>
+                    <td>
+                        <button @click="deletePatient(pat.id)" class="btn btn-danger btn-sm">Delete</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+        
+        <h2 class="text-white mb-3">📅 Appointment Management</h2>
+        <table class="table table-striped bg-white rounded">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>👤 Patient</th>
+                    <th>👨‍⚕️ Physician</th>
+                    <th>📅 Date</th>
+                    <th>🕐 Time</th>
+                    <th>📊 Status</th>
+                    <th>⚙️ Action</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr v-for="appt in appointments" :key="appt.id">
+                    <td>{{ appt.id }}</td>
+                    <td>{{ appt.patient_name }}</td>
+                    <td>{{ appt.doctor_name }}</td>
+                    <td>{{ appt.date }}</td>
+                    <td>{{ appt.time }}</td>
+                    <td>{{ appt.status }}</td>
+                    <td>
+                        <button class="btn btn-info btn-sm">View</button>
+                    </td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+    
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    stats: {doctors: 0, patients: 0, appointments: 0},
+                    doctors: [],
+                    patients: [],
+                    appointments: [],
+                    newDoctor: {name: '', specialization: '', username: '', password: '', email: ''},
+                    error: '',
+                    docSuccess: '',
+                    loading: false,
+                    token: ''
+                }
+            },
+            mounted() {
+                const token = localStorage.getItem('token');
+                const role = localStorage.getItem('role');
+                if (!token || role !== 'admin') {
+                    console.log('Not admin, redirecting to login');
+                    window.location = '/';
+                    return;
+                }
+                this.token = token;
+                this.loadData();
+                // Reload data every 10 seconds
+                setInterval(() => this.loadData(), 10000);
+            },
+            methods: {
+                async loadData() {
+                    console.log('Loading data with token:', this.token ? 'present' : 'missing');
+                    if (!this.token) {
+                        this.error = 'No token found. Please log in again.';
+                        return;
+                    }
+
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    };
+
+                    // Load stats
+                    try {
+                        const res1 = await fetch('/admin/stats', {headers});
+                        if (res1.ok) {
+                            this.stats = await res1.json();
+                            console.log('Stats loaded:', this.stats);
+                        } else {
+                            const errText = await res1.text();
+                            console.error('Stats error:', res1.status, errText);
+                            this.error = `Failed to load stats: ${res1.status}`;
+                        }
+                    } catch (e) {
+                        console.error('stats fetch failed', e);
+                        this.error = 'Error loading stats: ' + e.message;
+                    }
+
+                    // Load doctors
+                    try {
+                        const res2 = await fetch('/doctors', {headers});
+                        console.log('Doctors response:', res2.status);
+                        if (res2.ok) {
+                            this.doctors = await res2.json();
+                            console.log('Doctors loaded:', this.doctors);
+                        } else {
+                            const errText = await res2.text();
+                            console.error('Doctors error:', res2.status, errText);
+                            this.error = `Failed to load doctors: ${res2.status}`;
+                        }
+                    } catch (e) {
+                        console.error('doctors fetch failed', e);
+                        this.error = 'Error loading doctors: ' + e.message;
+                    }
+
+                    // Load patients
+                    try {
+                        const res3 = await fetch('/patients', {headers});
+                        console.log('Patients response:', res3.status);
+                        if (res3.ok) {
+                            const pats = await res3.json();
+                            this.patients = pats.map(p => ({id: p.id, name: p.name || 'Unknown'}));
+                            console.log('Patients loaded:', this.patients);
+                        } else {
+                            const errText = await res3.text();
+                            console.error('Patients error:', res3.status, errText);
+                            this.error = `Failed to load patients: ${res3.status}`;
+                        }
+                    } catch (e) {
+                        console.error('patients fetch failed', e);
+                        this.error = 'Error loading patients: ' + e.message;
+                    }
+
+                    // Load appointments
+                    try {
+                        const res4 = await fetch('/appointments', {headers});
+                        console.log('Appointments response:', res4.status);
+                        if (res4.ok) {
+                            this.appointments = await res4.json();
+                            console.log('Appointments loaded:', this.appointments);
+                        } else {
+                            const errText = await res4.text();
+                            console.error('Appointments error:', res4.status, errText);
+                            this.error = `Failed to load appointments: ${res4.status}`;
+                        }
+                    } catch (e) {
+                        console.error('appointments fetch failed', e);
+                        this.error = 'Error loading appointments: ' + e.message;
+                    }
+                },
+
+                async addDoctor() {
+                    if (!this.newDoctor.name || !this.newDoctor.username || !this.newDoctor.password) {
+                        this.error = 'All fields are required';
+                        return;
+                    }
+                    
+                    this.loading = true;
+                    this.error = '';
+                    this.docSuccess = '';
+                    
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        console.log('Adding doctor:', this.newDoctor);
+                        const res = await fetch('/add_doctor', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(this.newDoctor)
+                        });
+                        
+                        console.log('Add doctor response:', res.status);
+                        const text = await res.text();
+                        console.log('Response body:', text);
+                        
+                        let data = {};
+                        try {
+                            data = JSON.parse(text);
+                        } catch (e) {
+                            console.error('Failed to parse response:', e);
+                        }
+                        
+                        const msg = data.message || data.msg || res.statusText;
+                        
+                        if (res.ok) {
+                            this.docSuccess = 'Doctor added successfully!';
+                            this.newDoctor = {name: '', specialization: '', username: '', password: '', email: ''};
+                            setTimeout(() => {
+                                this.docSuccess = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = msg || 'Failed to add doctor';
+                        }
+                    } catch (e) {
+                        console.error('Add doctor failed:', e);
+                        this.error = 'Error adding doctor: ' + e.message;
+                    } finally {
+                        this.loading = false;
+                    }
+                },
+
+                async deleteDoctor(id) {
+                    if (!confirm('Are you sure you want to delete this doctor?')) return;
+                    
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch(`/doctor/${id}`, {
+                            method: 'DELETE',
+                            headers: headers
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.docSuccess = 'Doctor deleted successfully';
+                            setTimeout(() => {
+                                this.docSuccess = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = data.message || 'Failed to delete doctor';
+                        }
+                    } catch (e) {
+                        this.error = 'Error deleting doctor: ' + e.message;
+                    }
+                },
+
+                async deletePatient(id) {
+                    if (!confirm('Are you sure you want to delete this patient?')) return;
+                    
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch(`/patient/${id}`, {
+                            method: 'DELETE',
+                            headers: headers
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.docSuccess = 'Patient deleted successfully';
+                            setTimeout(() => {
+                                this.docSuccess = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = data.message || 'Failed to delete patient';
+                        }
+                    } catch (e) {
+                        this.error = 'Error deleting patient: ' + e.message;
+                    }
+                },
+
+                logout() {
+                    localStorage.clear();
+                    window.location = '/';
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
