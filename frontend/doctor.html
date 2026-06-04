@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MediCare Pro - Physician Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <style>
+        body {
+            background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+            min-height: 100vh;
+        }
+        .dashboard-header {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.1);
+        }
+        .btn-doctor {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+        .btn-doctor:hover {
+            background: linear-gradient(45deg, #5a6fd8, #6a4190);
+            color: white;
+        }
+        .section-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+        }
+    </style>
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+</head>
+<body>
+    <div id="app" class="container mt-5">
+        <div class="dashboard-header">
+            <h1 class="text-center mb-0">🏥 MediCare Pro - Physician Portal</h1>
+            <p class="text-center text-muted mb-0">Manage your appointments and patient care</p>
+        </div>
+        <button @click="logout" class="btn btn-danger mb-3">🔓 Logout</button>
+        
+        <div v-if="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" @click="error = ''" aria-label="Close"></button>
+        </div>
+        
+        <div v-if="success" class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button" class="btn-close" @click="success = ''" aria-label="Close"></button>
+        </div>
+        
+        <h2 class="text-primary mb-4">📅 Scheduled Appointments</h2>
+        <div class="section-card">
+            <table class="table table-striped">
+                <thead class="table-primary">
+                    <tr>
+                        <th>ID</th>
+                        <th>👤 Patient</th>
+                        <th>📅 Date</th>
+                        <th>🕐 Time</th>
+                        <th>📊 Status</th>
+                        <th>⚙️ Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="appt in appointments" :key="appt.id">
+                        <td>{{ appt.id }}</td>
+                        <td>{{ appt.patient_name }}</td>
+                        <td>{{ appt.date }}</td>
+                        <td>{{ appt.time }}</td>
+                        <td>
+                            <span class="badge" :class="appt.status === 'booked' ? 'bg-warning' : appt.status === 'completed' ? 'bg-success' : 'bg-secondary'">
+                                {{ appt.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <button @click="markComplete(appt.id)" class="btn btn-success btn-sm me-1">✅ Complete</button>
+                            <button @click="cancelAppointment(appt.id)" class="btn btn-warning btn-sm">❌ Cancel</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2 class="text-primary mb-3">👥 My Patients</h2>
+        <div class="section-card">
+            <div class="row">
+                <div v-for="pat in patients" :key="pat.id" class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">👤 {{ pat.name }}</h5>
+                            <button @click="viewHistory(pat.id)" class="btn btn-doctor btn-sm">📋 View History</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2 class="text-primary mb-3">📆 Schedule Management</h2>
+        <div class="section-card">
+            <form @submit.prevent="setAvailability">
+                <div class="mb-3">
+                    <label class="form-label">📅 Select Date</label>
+                    <input v-model="availability.date" type="date" class="form-control" required>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">🌅 Morning Start Time</label>
+                        <input v-model="availability.morningStart" type="time" class="form-control mb-2">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">🌅 Morning End Time</label>
+                        <input v-model="availability.morningEnd" type="time" class="form-control mb-2">
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">🌆 Evening Start Time</label>
+                        <input v-model="availability.eveningStart" type="time" class="form-control mb-2">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">🌆 Evening End Time</label>
+                        <input v-model="availability.eveningEnd" type="time" class="form-control mb-2">
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-doctor">💾 Save Schedule</button>
+            </form>
+        </div>
+        
+        <h2 class="text-primary mb-3">📝 Medical Records</h2>
+        <div class="section-card">
+            <form @submit.prevent="updateHistory">
+                <div class="mb-3">
+                    <label class="form-label">Appointment ID</label>
+                    <input v-model="history.appointment_id" placeholder="Enter appointment ID" class="form-control" required>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">🔍 Diagnosis</label>
+                        <input v-model="history.diagnosis" placeholder="Medical diagnosis" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">💊 Prescription</label>
+                        <input v-model="history.prescription" placeholder="Prescribed medication" class="form-control">
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">📋 Additional Notes</label>
+                    <textarea v-model="history.notes" placeholder="Clinical observations and notes" class="form-control" rows="3"></textarea>
+                </div>
+                <button type="submit" class="btn btn-doctor">💾 Save Medical Record</button>
+            </form>
+        </div>
+    </div>
+    
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    appointments: [],
+                    patients: [],
+                    availability: {date: '', morningStart: '', morningEnd: '', eveningStart: '', eveningEnd: ''},
+                    history: {appointment_id: '', diagnosis: '', prescription: '', notes: ''},
+                    error: '',
+                    success: '',
+                    token: ''
+                }
+            },
+            mounted() {
+                const token = localStorage.getItem('token');
+                const role = localStorage.getItem('role');
+                if (!token || role !== 'doctor') {
+                    console.log('Not doctor, redirecting to login');
+                    window.location = '/';
+                    return;
+                }
+                this.token = token;
+                this.loadData();
+                // Reload data every 10 seconds
+                setInterval(() => this.loadData(), 10000);
+            },
+            methods: {
+                async loadData() {
+                    console.log('Loading doctor data with token:', this.token ? 'present' : 'missing');
+                    if (!this.token) {
+                        this.error = 'No token found. Please log in again.';
+                        return;
+                    }
+
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    };
+
+                    // Load appointments
+                    try {
+                        const res1 = await fetch('/doctor/appointments', {headers});
+                        console.log('Appointments response:', res1.status);
+                        if (res1.ok) {
+                            this.appointments = await res1.json();
+                            console.log('Appointments loaded:', this.appointments);
+                        } else {
+                            const errText = await res1.text();
+                            console.error('Appointments error:', res1.status, errText);
+                            this.error = `Failed to load appointments: ${res1.status}`;
+                        }
+                    } catch (e) {
+                        console.error('appointments fetch failed', e);
+                        this.error = 'Error loading appointments: ' + e.message;
+                    }
+
+                    // Load patients
+                    try {
+                        const res2 = await fetch('/doctor/patients', {headers});
+                        console.log('Patients response:', res2.status);
+                        if (res2.ok) {
+                            this.patients = await res2.json();
+                            console.log('Patients loaded:', this.patients);
+                        } else {
+                            const errText = await res2.text();
+                            console.error('Patients error:', res2.status, errText);
+                            this.error = `Failed to load patients: ${res2.status}`;
+                        }
+                    } catch (e) {
+                        console.error('patients fetch failed', e);
+                        this.error = 'Error loading patients: ' + e.message;
+                    }
+
+                    // Load current availability
+                    try {
+                        const res3 = await fetch('/doctor/availability', {headers});
+                        console.log('Availability response:', res3.status);
+                        if (res3.ok) {
+                            const availData = await res3.json();
+                            console.log('Availability loaded:', availData);
+                            // Populate form with existing data
+                            if (availData.date) this.availability.date = availData.date;
+                            if (availData.morning) {
+                                const morningTimes = availData.morning.split('-');
+                                if (morningTimes.length === 2) {
+                                    this.availability.morningStart = morningTimes[0];
+                                    this.availability.morningEnd = morningTimes[1];
+                                }
+                            }
+                            if (availData.evening) {
+                                const eveningTimes = availData.evening.split('-');
+                                if (eveningTimes.length === 2) {
+                                    this.availability.eveningStart = eveningTimes[0];
+                                    this.availability.eveningEnd = eveningTimes[1];
+                                }
+                            }
+                        } else {
+                            const errText = await res3.text();
+                            console.error('Availability error:', res3.status, errText);
+                            // Don't show error for availability loading, it's optional
+                        }
+                    } catch (e) {
+                        console.error('availability fetch failed', e);
+                        // Don't show error for availability loading
+                    }
+                },
+                async markComplete(id) {
+                    if (!confirm('Mark this appointment as completed?')) return;
+                    
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch(`/appointment/${id}/complete`, {
+                            method: 'POST',
+                            headers: headers
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.success = 'Appointment marked as completed';
+                            setTimeout(() => {
+                                this.success = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = data.message || 'Failed to complete appointment';
+                        }
+                    } catch (e) {
+                        this.error = 'Error completing appointment: ' + e.message;
+                    }
+                },
+                async cancelAppointment(id) {
+                    if (!confirm('Cancel this appointment?')) return;
+                    
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch(`/appointment/${id}/cancel`, {
+                            method: 'POST',
+                            headers: headers
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.success = 'Appointment cancelled';
+                            setTimeout(() => {
+                                this.success = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = data.message || 'Failed to cancel appointment';
+                        }
+                    } catch (e) {
+                        this.error = 'Error cancelling appointment: ' + e.message;
+                    }
+                },
+                async setAvailability() {
+                    if (!this.availability.date) {
+                        this.error = 'Please select a date';
+                        return;
+                    }
+                    
+                    // Format the availability data
+                    const availabilityData = {
+                        date: this.availability.date,
+                        morning: this.availability.morningStart && this.availability.morningEnd ? 
+                                `${this.availability.morningStart}-${this.availability.morningEnd}` : '',
+                        evening: this.availability.eveningStart && this.availability.eveningEnd ? 
+                                `${this.availability.eveningStart}-${this.availability.eveningEnd}` : ''
+                    };
+                    
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch('/doctor/availability', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(availabilityData)
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.success = 'Availability set successfully';
+                            this.availability = {date: '', morningStart: '', morningEnd: '', eveningStart: '', eveningEnd: ''};
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            this.error = data.message || 'Failed to set availability';
+                        }
+                    } catch (e) {
+                        this.error = 'Error setting availability: ' + e.message;
+                    }
+                },
+                async updateHistory() {
+                    if (!this.history.appointment_id) {
+                        this.error = 'Please enter appointment ID';
+                        return;
+                    }
+                    
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch('/treatment', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(this.history)
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.success = 'Treatment record added successfully';
+                            this.history = {appointment_id: '', diagnosis: '', prescription: '', notes: ''};
+                            setTimeout(() => this.success = '', 3000);
+                        } else {
+                            this.error = data.message || 'Failed to add treatment record';
+                        }
+                    } catch (e) {
+                        this.error = 'Error adding treatment: ' + e.message;
+                    }
+                },
+                viewHistory(id) {
+                    // For now, alert
+                    alert('View history for patient ' + id);
+                },
+                logout() {
+                    localStorage.clear();
+                    window.location = '/';
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
