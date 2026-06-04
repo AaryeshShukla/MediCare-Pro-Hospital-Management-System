@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>MediCare Pro - Patient Portal</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/vue@3/dist/vue.global.js"></script>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+        }
+        .container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            padding: 30px;
+            margin-top: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+        }
+        .section-card {
+            background: rgba(255, 255, 255, 0.9);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+        }
+        .btn-patient {
+            background: linear-gradient(45deg, #667eea, #764ba2);
+            border: none;
+            color: white;
+        }
+        .btn-patient:hover {
+            background: linear-gradient(45deg, #5a6fd8, #6a4190);
+            color: white;
+        }
+        .text-primary {
+            color: #667eea !important;
+        }
+    </style>
+</head>
+<body>
+    <div id="app" class="container mt-5">
+        <div class="text-center mb-4">
+            <h1 class="text-primary">🏥 MediCare Pro - Patient Portal</h1>
+            <p class="text-muted">Your Health, Our Priority</p>
+        </div>
+        <button @click="logout" class="btn btn-danger mb-3">🚪 Logout</button>
+        
+        <div v-if="error" class="alert alert-danger alert-dismissible fade show" role="alert">
+            {{ error }}
+            <button type="button" class="btn-close" @click="error = ''" aria-label="Close"></button>
+        </div>
+        
+        <div v-if="success" class="alert alert-success alert-dismissible fade show" role="alert">
+            {{ success }}
+            <button type="button" class="btn-close" @click="success = ''" aria-label="Close"></button>
+        </div>
+        
+        <h2 class="text-primary mb-4">🏥 Medical Departments</h2>
+        <div class="section-card">
+            <div class="row">
+                <div v-for="dept in departments" :key="dept.id" class="col-md-4 mb-3">
+                    <div class="card h-100">
+                        <div class="card-body text-center">
+                            <h5 class="card-title">🏥 {{ dept.name }}</h5>
+                            <p class="card-text">{{ dept.description }}</p>
+                            <button @click="viewDoctors(dept.id)" class="btn btn-patient">👨‍⚕️ View Physicians</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <h2 class="text-primary mb-4">📅 My Appointments</h2>
+        <div class="section-card">
+            <table class="table table-striped">
+                <thead class="table-primary">
+                    <tr>
+                        <th>ID</th>
+                        <th>👨‍⚕️ Physician</th>
+                        <th>📅 Date</th>
+                        <th>🕐 Time</th>
+                        <th>📊 Status</th>
+                        <th>⚙️ Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="appt in appointments" :key="appt.id">
+                        <td>{{ appt.id }}</td>
+                        <td>{{ appt.doctor_name }}</td>
+                        <td>{{ appt.date }}</td>
+                        <td>{{ appt.time }}</td>
+                        <td>
+                            <span class="badge" :class="appt.status === 'booked' ? 'bg-warning' : appt.status === 'completed' ? 'bg-success' : 'bg-secondary'">
+                                {{ appt.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <button @click="cancelAppointment(appt.id)" class="btn btn-warning btn-sm">❌ Cancel</button>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        
+        <h2 class="text-primary mb-3">📝 Schedule New Appointment</h2>
+        <div class="section-card">
+            <form @submit.prevent="bookAppointment">
+                <div class="mb-3">
+                    <label class="form-label">👨‍⚕️ Select Physician</label>
+                    <select v-model="booking.doctor_id" class="form-control" required>
+                        <option value="">Choose a physician</option>
+                        <option v-for="doc in doctors" :value="doc.id">{{ doc.name }} - {{ doc.specialization }}</option>
+                    </select>
+                </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <label class="form-label">📅 Preferred Date</label>
+                        <input v-model="booking.date" type="date" class="form-control" required>
+                    </div>
+                    <div class="col-md-6">
+                        <label class="form-label">🕐 Preferred Time</label>
+                        <input v-model="booking.time" type="time" class="form-control" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-patient mt-3">📅 Book Appointment</button>
+            </form>
+        </div>
+        
+        <h2 class="text-primary mb-3">📋 Medical History</h2>
+        <div class="section-card">
+            <table class="table table-striped">
+                <thead class="table-primary">
+                    <tr>
+                        <th>🏥 Visit #</th>
+                        <th>👨‍⚕️ Physician</th>
+                        <th>🔍 Diagnosis</th>
+                        <th>💊 Prescription</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr v-for="hist in history" :key="hist.id">
+                        <td>{{ hist.visit_no }}</td>
+                        <td>{{ hist.doctor_name }}</td>
+                        <td>{{ hist.diagnosis }}</td>
+                        <td>{{ hist.prescription }}</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+    
+    <script>
+        const { createApp } = Vue;
+        createApp({
+            data() {
+                return {
+                    departments: [],
+                    appointments: [],
+                    doctors: [],
+                    history: [],
+                    booking: {doctor_id: '', date: '', time: ''},
+                    error: '',
+                    success: '',
+                    token: ''
+                }
+            },
+            mounted() {
+                const token = localStorage.getItem('token');
+                const role = localStorage.getItem('role');
+                if (!token || role !== 'patient') {
+                    console.log('Not patient, redirecting to login');
+                    window.location = '/';
+                    return;
+                }
+                this.token = token;
+                this.loadData();
+                // Reload data every 10 seconds
+                setInterval(() => this.loadData(), 10000);
+            },
+            methods: {
+                async loadData() {
+                    console.log('Loading patient data with token:', this.token ? 'present' : 'missing');
+                    if (!this.token) {
+                        this.error = 'No token found. Please log in again.';
+                        return;
+                    }
+
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`,
+                        'Content-Type': 'application/json'
+                    };
+
+                    // Load departments
+                    try {
+                        const res1 = await fetch('/departments');
+                        console.log('Departments response:', res1.status);
+                        if (res1.ok) {
+                            this.departments = await res1.json();
+                            console.log('Departments loaded:', this.departments);
+                        } else {
+                            const errText = await res1.text();
+                            console.error('Departments error:', res1.status, errText);
+                            this.error = `Failed to load departments: ${res1.status}`;
+                        }
+                    } catch (e) {
+                        console.error('departments fetch failed', e);
+                        this.error = 'Error loading departments: ' + e.message;
+                    }
+
+                    // Load appointments
+                    try {
+                        const res2 = await fetch('/patient/appointments', {headers});
+                        console.log('Appointments response:', res2.status);
+                        if (res2.ok) {
+                            this.appointments = await res2.json();
+                            console.log('Appointments loaded:', this.appointments);
+                        } else {
+                            const errText = await res2.text();
+                            console.error('Appointments error:', res2.status, errText);
+                            this.error = `Failed to load appointments: ${res2.status}`;
+                        }
+                    } catch (e) {
+                        console.error('appointments fetch failed', e);
+                        this.error = 'Error loading appointments: ' + e.message;
+                    }
+
+                    // Load doctors for booking
+                    try {
+                        const res4 = await fetch('/public/doctors');
+                        console.log('Doctors response:', res4.status);
+                        if (res4.ok) {
+                            this.doctors = await res4.json();
+                            console.log('Doctors loaded:', this.doctors);
+                        } else {
+                            const errText = await res4.text();
+                            console.error('Doctors error:', res4.status, errText);
+                            this.error = `Failed to load doctors: ${res4.status}`;
+                        }
+                    } catch (e) {
+                        console.error('doctors fetch failed', e);
+                        this.error = 'Error loading doctors: ' + e.message;
+                    }
+                },
+                viewDoctors(deptId) {
+                    // For now, just show all doctors (already loaded)
+                    // In future, could filter by department
+                    console.log('Viewing doctors for department:', deptId);
+                },
+                async bookAppointment() {
+                    if (!this.booking.doctor_id || !this.booking.date || !this.booking.time) {
+                        this.error = 'Please fill all fields';
+                        return;
+                    }
+                    
+                    const headers = {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch('/appointment', {
+                            method: 'POST',
+                            headers: headers,
+                            body: JSON.stringify(this.booking)
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.success = 'Appointment booked successfully!';
+                            this.booking = {doctor_id: '', date: '', time: ''};
+                            setTimeout(() => {
+                                this.success = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = data.message || 'Failed to book appointment';
+                        }
+                    } catch (e) {
+                        this.error = 'Error booking appointment: ' + e.message;
+                    }
+                },
+                async cancelAppointment(id) {
+                    if (!confirm('Cancel this appointment?')) return;
+                    
+                    const headers = {
+                        'Authorization': `Bearer ${this.token}`
+                    };
+
+                    try {
+                        const res = await fetch(`/appointment/${id}/cancel`, {
+                            method: 'POST',
+                            headers: headers
+                        });
+                        const data = await res.json();
+                        
+                        if (res.ok) {
+                            this.success = 'Appointment cancelled successfully';
+                            setTimeout(() => {
+                                this.success = '';
+                                this.loadData();
+                            }, 1500);
+                        } else {
+                            this.error = data.message || 'Failed to cancel appointment';
+                        }
+                    } catch (e) {
+                        this.error = 'Error cancelling appointment: ' + e.message;
+                    }
+                },
+                logout() {
+                    localStorage.clear();
+                    window.location = '/';
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
